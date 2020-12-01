@@ -94,6 +94,7 @@ class Trainer(T_Trainer):
             reduce_other_outputs: Callable[[Tuple[torch.tensor]], Any] = None, 
             output_the_same_dir: bool = True,  # 是否将模型也保存到log目录，方便随着日志一起删除
             compare_datasets: bool = False, # 是否开启不同数据集(train/eval)之间的对比，体现在tensorboard上。
+            use_tqdm_in_eval: bool = False, # 是否在eval（eval_dev或者eval_trainset）时开启进度条
         ):
         super().__init__(model, args, data_collator=data_collator, train_dataset=train_dataset,
             eval_dataset=eval_dataset, compute_metrics=compute_metrics, prediction_loss_only=prediction_loss_only, tb_writer=tb_writer, optimizers=optimizers)
@@ -135,6 +136,7 @@ class Trainer(T_Trainer):
         self.no_use_scheduler = no_use_scheduler # 设置成True表示学习率不衰减，乘积因子始终为1(常数)的LambaLR 
         self.get_optimizer = get_optimizer
         self.reduce_other_outputs = reduce_other_outputs
+        self.use_tqdm_in_eval = use_tqdm_in_eval
     
     def call_once(self,):
         self.tb_writer = SummaryWriter(log_dir=self.log_dir)
@@ -411,13 +413,13 @@ class Trainer(T_Trainer):
                         self.log(logs)
 
                     if self.args.evaluate_during_training and self.global_step % self.args.eval_steps == 0:
-                        eval_metrics = self.evaluate(use_tqdm=False, log=True, description="eval") # also save the metrics
+                        eval_metrics = self.evaluate(use_tqdm=self.use_tqdm_in_eval, log=True, description="eval") # also save the metrics
                         for k,v in eval_metrics.items():
                             if k[0] == '_':
                                 tqdm_dict[k[1:]] = v
                     
                     if self.args.evaluate_trainset_during_training and self.global_step % self.args.eval_trainset_steps == 0:
-                        train_metrics = self.evaluate(eval_dataloader=self.eval_train_dataloader,use_tqdm=False, log=True, description="eval_train")
+                        train_metrics = self.evaluate(eval_dataloader=self.eval_train_dataloader,use_tqdm=self.use_tqdm_in_eval, log=True, description="eval_train")
                         for k,v in train_metrics.items():
                             if k[0] == '_':
                                 tqdm_dict[k[1:]] = v
