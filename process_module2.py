@@ -1,0 +1,1 @@
+/home/amax/distributed_program/multiprocess/process_module2.py
